@@ -1,0 +1,50 @@
+name: 🐧 Linux Desktop (Web VNC) + Onboard
+
+# نسخه بدون پسورد VNC: موقع ورود به noVNC دیگر پسورد نمی‌خواهد.
+# توجه: چون پسورد ندارد، هر کسی که به لینک noVNC برسد وارد دسکتاپ می‌شود —
+# رانر موقتی است و بعد از تمام شدن ران از بین می‌رود، ولی مراقب باش.
+# تگ تیل‌اسکیل: tag:github-runner (کیِ TAILSCALE_AUTHKEY باید با همین تگ ساخته شده باشد
+# و ACL تیل‌اسکیل هم مال hamidrwb@github باشد).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Desktop, noVNC & Onboard
+        run: |
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y xfce4 xfce4-goodies tightvncserver novnc websockify onboard
+          
+          mkdir -p ~/.vnc
+          rm -f ~/.vnc/passwd
+          
+          cat << 'EOF' > ~/.vnc/xstartup
+          #!/bin/bash
+          xrdb $HOME/.Xresources
+          startxfce4 &
+          onboard &
+          EOF
+          chmod +x ~/.vnc/xstartup
+
+          vncserver :1 -geometry 1280x720 -depth 24 -SecurityTypes=None
+          websockify --web /usr/share/novnc/ 6080 localhost:5901 &
+
+      - name: Connect Tailscale
+        env:
+          TS_KEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey "$TS_KEY" --hostname "github-runner-linux" --advertise-tags=tag:github-runner --advertise-exit-node --accept-routes
+          sleep 5
+
+      - name: Keep Alive Loop
+        run: |
+          timeout=290
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            sleep 60
+            elapsed=$((elapsed + 1))
+          done
