@@ -1,8 +1,11 @@
 name: 🐧 Linux Desktop (Web VNC) + Onboard
 
-# نسخه بدون پسورد VNC: موقع ورود به noVNC دیگر پسورد نمی‌خواهد.
-# توجه: چون پسورد ندارد، هر کسی که به لینک noVNC برسد وارد دسکتاپ می‌شود —
-# رانر موقتی است و بعد از تمام شدن ران از بین می‌رود، ولی مراقب باش.
+# نسخه درست‌شده: VNC بدون پسورد نمی‌شود — tightvncserver پسورد کوتاه/خالی را
+# قبول نمی‌کند و ران با «Password too short» می‌افتد. پس پسورد 123456 برگشت.
+# برای اینکه موقع ورود به noVNC پسورد تایپ نکنی، به آخر لینک noVNC اضافه کن:
+#   ?password=123456
+# یعنی مثلا: http://<ip>:6080/vnc.html?password=123456
+# آن‌وقت مستقیم وارد دسکتاپ می‌شوی.
 # تگ تیل‌اسکیل: tag:github-runner (کیِ TAILSCALE_AUTHKEY باید با همین تگ ساخته شده باشد
 # و ACL تیل‌اسکیل هم مال hamidrwb@github باشد).
 
@@ -19,7 +22,8 @@ jobs:
           DEBIAN_FRONTEND=noninteractive sudo apt-get install -y xfce4 xfce4-goodies tightvncserver novnc websockify onboard
           
           mkdir -p ~/.vnc
-          rm -f ~/.vnc/passwd
+          echo "123456" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
           
           cat << 'EOF' > ~/.vnc/xstartup
           #!/bin/bash
@@ -29,7 +33,7 @@ jobs:
           EOF
           chmod +x ~/.vnc/xstartup
 
-          vncserver :1 -geometry 1280x720 -depth 24 -SecurityTypes=None
+          vncserver :1 -geometry 1280x720 -depth 24
           websockify --web /usr/share/novnc/ 6080 localhost:5901 &
 
       - name: Connect Tailscale
